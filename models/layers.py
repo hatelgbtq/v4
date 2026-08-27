@@ -120,7 +120,7 @@ class DynamicLinear(nn.Module):
 
         # timestamps
         self.timestamp = torch.cat(
-            [self.timestamp, torch.full((n_new,), task_id, dtype=torch.long)]
+            [self.timestamp, torch.full((n_new,), task_id, dtype=torch.long, device=dev)]
         )
 
     def expand_input_units(self, n_new: int):
@@ -184,7 +184,7 @@ class DynamicLinear(nn.Module):
                 # --- new copy: adapted knowledge ---
                 new_rows.append(self.weight.data[j : j + 1, :].clone())
                 new_bias_rows.append(self.bias.data[j : j + 1].clone())
-                new_ts.append(torch.full((1,), task_id, dtype=torch.long))
+                new_ts.append(torch.full((1,), task_id, dtype=torch.long, device=self.weight.device))
             else:
                 old_rows.append(self.weight.data[j : j + 1, :].clone())
                 old_bias_rows.append(self.bias.data[j : j + 1].clone())
