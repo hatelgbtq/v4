@@ -1,0 +1,42 @@
+dataset: text
+data_path: TinyStories/data
+num_tasks: 5
+batch_size: 64
+max_iter: 10000
+lr: 0.0003
+
+# Text preprocessing — rich vocabulary, wide context
+context: 256
+emb_dim: 512
+vocab_size: 10000
+stories_per_task: 10000
+
+# Network architecture — wide and deep
+hidden_dims: [2048, 1024, 512]
+num_classes: 16384
+
+# DEN hyper-parameters
+ex_k: 64
+l1_lambda: 0.0000001
+l2_lambda: 0.000001
+gl_lambda: 0.0002
+regular_lambda: 0.5
+loss_thr: 0.03
+spl_thr: 0.03
+
+# Context growth
+context_growth_enabled: true
+context_growth_thr: 0.04
+context_growth_step: 128
+context_max: 2048
+
+# Depth growth
+depth_growth_enabled: true
+depth_growth_interval: 1
+
+device: auto
+log_dir: results/tinystories_massive
+seed: 1004
+
+gen_length: 80
+gen_temperature: 0.85
