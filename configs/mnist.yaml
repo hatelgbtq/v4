@@ -1,0 +1,25 @@
+# Configuration for standard MNIST (single task, baseline)
+dataset: mnist
+num_tasks: 1
+batch_size: 256
+max_iter: 5000
+lr: 0.001
+
+# Network architecture
+input_dim: 784
+hidden_dims: [312, 128]
+num_classes: 10
+
+# DEN hyper-parameters (not used for single task)
+ex_k: 10
+l1_lambda: 0.00001
+l2_lambda: 0.0001
+gl_lambda: 0.001
+regular_lambda: 0.5
+loss_thr: 0.01
+spl_thr: 0.05
+
+# Training options
+device: auto
+log_dir: results/mnist
+seed: 1004

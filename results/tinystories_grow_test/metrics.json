@@ -1,0 +1,76 @@
+{
+  "test_acc": [
+    [
+      0.15846162938447445
+    ],
+    [
+      0.15846162938447445,
+      0.15916347381864623
+    ]
+  ],
+  "avg_forgetting": [
+    0.0,
+    0.0
+  ],
+  "sparsity": [
+    0.10130084172111366,
+    0.11100891955073351
+  ],
+  "neuron_counts": [
+    [
+      312,
+      128
+    ],
+    [
+      312,
+      128
+    ]
+  ],
+  "neurons_added": [
+    0,
+    0
+  ],
+  "neurons_split": [
+    440,
+    0
+  ],
+  "n_hidden_layers": [
+    2,
+    2
+  ],
+  "depth_insertions": [
+    false,
+    false
+  ],
+  "architecture_log": [
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        312,
+        128
+      ],
+      "total_params": 196280,
+      "task_id": 0,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        312,
+        128
+      ],
+      "total_params": 262328,
+      "task_id": 1,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    }
+  ],
+  "n_tasks_trained": 2
+}

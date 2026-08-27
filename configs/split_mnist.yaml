@@ -1,0 +1,25 @@
+# Configuration for Split MNIST (5 tasks, 2 classes each)
+dataset: split_mnist
+num_tasks: 5
+batch_size: 256
+max_iter: 3000
+lr: 0.001
+
+# Network architecture
+input_dim: 784
+hidden_dims: [256, 128]
+num_classes: 2
+
+# DEN hyper-parameters
+ex_k: 10
+l1_lambda: 0.00001
+l2_lambda: 0.0001
+gl_lambda: 0.001
+regular_lambda: 0.5
+loss_thr: 0.01
+spl_thr: 0.05
+
+# Training options
+device: auto
+log_dir: results/split_mnist
+seed: 1004

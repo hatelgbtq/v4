@@ -1,0 +1,64 @@
+nohup: ignoring input
+  [*] Device: cpu
+  [*] Config: {'dataset': 'text', 'data_path': 'TinyStories/data', 'num_tasks': 2, 'batch_size': 128, 'max_iter': 4000, 'lr': 0.001, 'context': 128, 'emb_dim': 128, 'vocab_size': 1000, 'stories_per_task': 2000, 'hidden_dims': [512, 256], 'num_classes': 4096, 'ex_k': 16, 'l1_lambda': 1e-06, 'l2_lambda': 1e-05, 'gl_lambda': 0.0005, 'regular_lambda': 0.5, 'loss_thr': 0.05, 'spl_thr': 0.05, 'context_growth_enabled': True, 'context_growth_thr': 0.05, 'context_growth_step': 64, 'context_max': 512, 'depth_growth_enabled': True, 'depth_growth_interval': 1, 'device': 'auto', 'log_dir': 'results/tinystories_grow_all', 'seed': 1004, 'gen_length': 40, 'gen_temperature': 1.0, 'replay_per_task': 800, 'replay_fraction': 0.6}
+  [*] Text corpus: vocab=1000 words, context=128, input_dim=16384
+
+============================================================
+  TASK 1 / 2
+============================================================
+  [*] Eval metrics (task 0): avg_bce=5.021903, acc=0.255805, avg_ce=5.021903, ppl=151.70, top1=0.2558, top5=0.4502, top10=0.5451
+  [*] Eval metrics (task 0): avg_bce=5.021903, acc=0.255805, avg_ce=5.021903, ppl=151.70, top1=0.2558, top5=0.4502, top10=0.5451
+
+  [*] Metrics saved to results/tinystories_grow_all/metrics.json
+
+  [*] Checkpoint saved to results/tinystories_grow_all/checkpoint.pt (resume with --resume)
+
+  [*] Results after Task 1:
+      Task 1 test acc: 0.2558
+      Avg forgetting: 0.0000
+      Neurons per layer: [512, 256]
+      Hidden layers: 2
+      Sparsity: 0.0060
+      Time: 485.5s
+
+============================================================
+  TASK 2 / 2
+============================================================
+
+  [*] Selective retraining
+  [*] Eval metrics (task 1): avg_bce=4.220904, acc=0.265972, avg_ce=4.220904, ppl=68.10, top1=0.2660, top5=0.4807, top10=0.5871
+  [*] Network expansion triggered
+  [*] Pruned 28 dead units
+  [*] Split & duplication
+  [*] Split counts per layer: [16, 16]
+  [*] Eval metrics (task 1): avg_bce=4.720570, acc=0.215349, avg_ce=4.720570, ppl=112.23, top1=0.2153, top5=0.3962, top10=0.4834
+  [*] Task 1: test_loss=4.7206, test_acc=0.2153, sparsity=0.0227
+  [*] Context grown: 128 -> 192 (input_dim: 16384 -> 24576)
+
+  [*] Rebuilding data loaders for new context=192
+  [*] Eval metrics (task 0): avg_bce=4.793797, acc=0.251919, avg_ce=4.793797, ppl=120.76, top1=0.2519, top5=0.4509, top10=0.5425
+  [*] Eval metrics (task 1): avg_bce=4.720570, acc=0.215349, avg_ce=4.720570, ppl=112.23, top1=0.2153, top5=0.3962, top10=0.4834
+
+  [*] Metrics saved to results/tinystories_grow_all/metrics.json
+
+  [*] Checkpoint saved to results/tinystories_grow_all/checkpoint.pt (resume with --resume)
+
+  [*] Results after Task 2:
+      Task 1 test acc: 0.2519
+      Task 2 test acc: 0.2153
+      Avg forgetting: 0.0039
+      Neurons per layer: [528, 276]
+      Hidden layers: 2
+      Sparsity: 0.0184
+      Time: 3085.5s
+
+============================================================
+  FINAL SUMMARY
+============================================================
+  Task 1: best=0.2558  final=0.2519
+  Task 2: best=0.2153  final=0.2153
+
+  [*] Metrics saved to results/tinystories_grow_all/metrics.json
+  [*] Plots saved to results/tinystories_grow_all
+
+  [*] Done.

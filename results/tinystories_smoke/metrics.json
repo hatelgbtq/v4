@@ -1,0 +1,135 @@
+{
+  "test_acc": [
+    [
+      0.15405561514976482
+    ],
+    [
+      0.15405561514976482,
+      0.15908003999826095
+    ],
+    [
+      0.15405561514976482,
+      0.15908003999826095,
+      0.1593149502566665
+    ],
+    [
+      0.15405561514976482,
+      0.15908003999826095,
+      0.1593149502566665,
+      0.159479570079631
+    ]
+  ],
+  "avg_forgetting": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "sparsity": [
+    0.01787187785005784,
+    0.02754504625348361,
+    0.04584798666826212,
+    0.05649080456119175
+  ],
+  "neuron_counts": [
+    [
+      312,
+      128
+    ],
+    [
+      312,
+      128
+    ],
+    [
+      312,
+      128
+    ],
+    [
+      312,
+      121
+    ]
+  ],
+  "neurons_added": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "neurons_split": [
+    440,
+    0,
+    0,
+    -7
+  ],
+  "n_hidden_layers": [
+    2,
+    2,
+    2,
+    2
+  ],
+  "depth_insertions": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "architecture_log": [
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        312,
+        128
+      ],
+      "total_params": 743852,
+      "task_id": 0,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        312,
+        128
+      ],
+      "total_params": 808352,
+      "task_id": 1,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        312,
+        128
+      ],
+      "total_params": 872852,
+      "task_id": 2,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        312,
+        128
+      ],
+      "total_params": 937352,
+      "task_id": 3,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    }
+  ],
+  "n_tasks_trained": 4
+}

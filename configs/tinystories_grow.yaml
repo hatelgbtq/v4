@@ -1,0 +1,38 @@
+# Faster/better-quality English training on CPU: small vocab, more data.
+# Reuses the SAME checkpoint dir/if you want: change log_dir or delete old results first.
+dataset: text
+data_path: TinyStories/data
+num_tasks: 10
+batch_size: 256
+max_iter: 1500
+lr: 0.002
+
+context: 6        # more context -> better next-word prediction
+emb_dim: 48
+vocab_size: 512   # top-500 words: much easier for a feedforward net
+stories_per_task: 4000
+
+hidden_dims: [312, 128]
+num_classes: 512
+
+ex_k: 12
+l1_lambda: 0.00001
+l2_lambda: 0.0001
+gl_lambda: 0.002
+regular_lambda: 0.5
+loss_thr: 0.02    # lower threshold -> DEN grows neurons during training
+spl_thr: 0.05
+
+# Depth growth: add a new hidden layer when val loss plateaus
+depth_growth_enabled: true
+depth_growth_criterion: val_loss_plateau
+depth_growth_interval: 3
+dg_patience: 3
+dg_min_delta: 0.01
+
+device: auto
+log_dir: results/tinystories_grow
+seed: 1004
+
+gen_length: 40
+gen_temperature: 1.0

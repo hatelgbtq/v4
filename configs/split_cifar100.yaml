@@ -1,0 +1,36 @@
+# Split CIFAR-100: dynamic depth growth benchmark
+dataset: split_cifar100
+num_tasks: 5
+batch_size: 256
+max_iter: 500
+lr: 0.001
+input_dim: 3072
+hidden_dims: [192, 96]
+num_classes: 20
+
+# DEN hyper-parameters
+ex_k: 10
+l1_lambda: 0.00001
+l2_lambda: 0.0001
+gl_lambda: 0.001
+regular_lambda: 0.5
+loss_thr: 0.01
+spl_thr: 0.05
+
+# Depth growth (calibrated thresholds)
+depth_growth_enabled: true
+depth_growth_criterion: val_loss_plateau
+depth_growth_interval: 3
+patience: 1
+min_delta: 0.005
+consecutive_expansions: 2
+saturation_ratio: 0.02
+saturation_threshold: 0.3
+imbalance_ratio: 0.7
+cka_threshold: 0.7
+
+# Logging / seeds
+log_dir: results/split_cifar100
+seed: 1004
+device: auto
+verbose: true

@@ -1,0 +1,166 @@
+{
+  "test_acc": [
+    [
+      0.9976359338061466
+    ],
+    [
+      0.9929078014184397,
+      0.4813907933398629
+    ],
+    [
+      0.9905437352245863,
+      0.48824681684622917,
+      0.4391675560298826
+    ],
+    [
+      0.9886524822695035,
+      0.4921645445641528,
+      0.4439701173959445,
+      0.6651560926485398
+    ],
+    [
+      0.9806146572104019,
+      0.4990205680705191,
+      0.4391675560298826,
+      0.6586102719033232,
+      0.46394351991931415
+    ]
+  ],
+  "avg_forgetting": [
+    0.0,
+    0.004728132387706863,
+    0.003546099290780147,
+    0.0029944838455476797,
+    0.0070924146767557955
+  ],
+  "sparsity": [
+    0.48405270913867116,
+    0.43905074061889504,
+    0.3970165239298798,
+    0.3555957190733034,
+    0.3349064430612741
+  ],
+  "neuron_counts": [
+    [
+      256,
+      128
+    ],
+    [
+      266,
+      138
+    ],
+    [
+      266,
+      138
+    ],
+    [
+      266,
+      138
+    ],
+    [
+      276,
+      148
+    ]
+  ],
+  "neurons_added": [
+    0,
+    20,
+    0,
+    0,
+    20
+  ],
+  "neurons_split": [
+    384,
+    20,
+    0,
+    0,
+    20
+  ],
+  "n_hidden_layers": [
+    2,
+    2,
+    2,
+    2,
+    2
+  ],
+  "depth_insertions": [
+    false,
+    false,
+    false,
+    false,
+    false
+  ],
+  "architecture_log": [
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        256,
+        128
+      ],
+      "total_params": 234114,
+      "task_id": 0,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        266,
+        138
+      ],
+      "total_params": 246212,
+      "task_id": 1,
+      "expansion_info": [
+        10,
+        10
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        266,
+        138
+      ],
+      "total_params": 246490,
+      "task_id": 2,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        266,
+        138
+      ],
+      "total_params": 246768,
+      "task_id": 3,
+      "expansion_info": [
+        0,
+        0
+      ],
+      "depth_inserted": false
+    },
+    {
+      "n_hidden_layers": 2,
+      "neurons_per_layer": [
+        276,
+        148
+      ],
+      "total_params": 259146,
+      "task_id": 4,
+      "expansion_info": [
+        10,
+        10
+      ],
+      "depth_inserted": false
+    }
+  ],
+  "n_tasks_trained": 5
+}

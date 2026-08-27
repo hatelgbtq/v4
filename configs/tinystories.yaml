@@ -1,0 +1,48 @@
+# Teach English with DEN: next-token prediction over a story corpus.
+# data_path may be a .txt (one story per line) or the TinyStories
+# parquet directory (../TinyStories/data).
+dataset: text
+data_path: TinyStories/data
+num_tasks: 10
+batch_size: 128
+max_iter: 4000
+lr: 0.001
+
+# Text preprocessing
+context: 128        # words of context fed to the network
+emb_dim: 64       # vector size per word
+vocab_size: 1000  # vocabulary size (+ <unk>, <pad>)
+stories_per_task: 2000  # sampled per task (CPU-friendly; the corpus has ~2.2M stories)
+
+# Network architecture (initial)
+# input_dim = context * emb_dim (flattened embeddings, set at runtime)
+hidden_dims: [312, 128]
+num_classes: 4096  # overwritten to vocab size at runtime
+
+# DEN hyper-parameters
+ex_k: 10
+l1_lambda: 0.00001
+l2_lambda: 0.0001
+gl_lambda: 0.001
+regular_lambda: 0.5
+loss_thr: 0.05
+spl_thr: 0.05
+
+# Context growth: window expands when val loss stays high
+context_growth_enabled: true
+context_growth_thr: 0.05   # trigger growth if val_loss > this
+context_growth_step: 64    # add 64 tokens per growth event
+context_max: 512           # cap at 512 tokens
+
+# Depth growth (add a new hidden layer when English gets hard)
+depth_growth_enabled: false
+depth_growth_interval: 3
+
+# Training options
+device: auto
+log_dir: results/tinystories
+seed: 1004
+
+# Generation
+gen_length: 40
+gen_temperature: 1.0
