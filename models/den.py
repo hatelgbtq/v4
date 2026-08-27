@@ -668,8 +668,8 @@ class DEN(nn.Module):
             old_bias_anchor = first_layer.bias_anchor if hasattr(first_layer, 'bias_anchor') else None
             old_timestamp = first_layer.timestamp if hasattr(first_layer, 'timestamp') else None
 
-            # Create new layer with larger input
-            new_layer = DynamicLinear(new_input_dim, first_layer.out_features, task_id=0)
+            # Create new layer with larger input and move to device first
+            new_layer = DynamicLinear(new_input_dim, first_layer.out_features, task_id=0).to(self._device)
 
             # Copy old weights: each word's embeddings are contiguous
             # old weight columns [0:old_input_dim] map to new columns [0:old_input_dim]
