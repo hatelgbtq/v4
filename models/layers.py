@@ -99,8 +99,9 @@ class DynamicLinear(nn.Module):
         These new units receive timestamp = *task_id* and their anchor is
         zeroed so no knowledge-preservation penalty applies yet.
         """
-        new_w = torch.empty(n_new, self.in_features)
-        new_b = torch.empty(n_new)
+        dev = self.weight.device
+        new_w = torch.empty(n_new, self.in_features, device=dev)
+        new_b = torch.empty(n_new, device=dev)
         nn.init.kaiming_uniform_(new_w, a=math.sqrt(5))
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(new_w)
         bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
@@ -113,9 +114,9 @@ class DynamicLinear(nn.Module):
 
         # anchors (zero-initialised → no penalty for fresh units)
         self.weight_anchor = torch.cat(
-            [self.weight_anchor, torch.zeros(n_new, self.in_features)]
+            [self.weight_anchor, torch.zeros(n_new, self.in_features, device=dev)]
         )
-        self.bias_anchor = torch.cat([self.bias_anchor, torch.zeros(n_new)])
+        self.bias_anchor = torch.cat([self.bias_anchor, torch.zeros(n_new, device=dev)])
 
         # timestamps
         self.timestamp = torch.cat(
@@ -129,14 +130,15 @@ class DynamicLinear(nn.Module):
         Needed when the *previous* layer grew and this layer must accept
         extra input features.
         """
-        new_w = torch.empty(self.out_features, n_new)
+        dev = self.weight.device
+        new_w = torch.empty(self.out_features, n_new, device=dev)
         nn.init.kaiming_uniform_(new_w, a=math.sqrt(5))
         self.weight = nn.Parameter(torch.cat([self.weight.data, new_w], dim=1))
         self.in_features += n_new
 
         # anchor columns are zeroed so no penalty for new connections
         self.weight_anchor = torch.cat(
-            [self.weight_anchor, torch.zeros(self.out_features, n_new)], dim=1
+            [self.weight_anchor, torch.zeros(self.out_features, n_new, device=dev)], dim=1
         )
 
     # ------------------------------------------------------------------
@@ -196,11 +198,12 @@ class DynamicLinear(nn.Module):
         self.out_features += n_split
 
         # anchors  (zero for the new copies → no penalty yet)
+        dev = self.weight.device
         self.weight_anchor = torch.cat(
-            [self.weight_anchor, torch.zeros(n_split, self.in_features)]
+            [self.weight_anchor, torch.zeros(n_split, self.in_features, device=dev)]
         )
         self.bias_anchor = torch.cat(
-            [self.bias_anchor, torch.zeros(n_split)]
+            [self.bias_anchor, torch.zeros(n_split, device=dev)]
         )
 
         # timestamps
@@ -274,17 +277,18 @@ class TaskOutputHead(nn.Module):
         """Add *n_new* zero-initialised columns to accommodate growth in
         the previous layer."""
         if self.tie:
-            # proj: (embed_dim, in_features) -> append zero columns
-            new_proj_cols = torch.zeros(self.embed_dim, n_new)
+            dev = self.proj.device
+            new_proj_cols = torch.zeros(self.embed_dim, n_new, device=dev)
             self.proj = nn.Parameter(torch.cat([self.proj.data, new_proj_cols], dim=1))
             self.in_features += n_new
-            self.proj_anchor = torch.cat([self.proj_anchor, torch.zeros(self.embed_dim, n_new)], dim=1)
+            self.proj_anchor = torch.cat([self.proj_anchor, torch.zeros(self.embed_dim, n_new, device=dev)], dim=1)
         else:
-            new_w = torch.zeros(self.num_classes, n_new)
+            dev = self.weight.device
+            new_w = torch.zeros(self.num_classes, n_new, device=dev)
             self.weight = nn.Parameter(torch.cat([self.weight.data, new_w], dim=1))
             self.in_features += n_new
             self.weight_anchor = torch.cat(
-                [self.weight_anchor, torch.zeros(self.num_classes, n_new)], dim=1
+                [self.weight_anchor, torch.zeros(self.num_classes, n_new, device=dev)], dim=1
             )
 
     def get_weight(self) -> torch.Tensor:

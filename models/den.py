@@ -436,6 +436,7 @@ class DEN(nn.Module):
             tied.set_weight_and_bias(w, b)
             self.output_heads[key] = tied
         self.tie_embeddings = True
+        self.to(self._device)
 
     # ---------------------------------------------------------------
     #  First task
@@ -1511,6 +1512,7 @@ class DEN(nn.Module):
                 embedder=(self.embedder if getattr(self, 'embedder', None) is not None else None),
                 tie=getattr(self, 'tie_embeddings', False),
             )
+            self.to(self._device)
 
     def _log_architecture(
         self, task_id: int,
