@@ -254,7 +254,12 @@ def main():
         context_max=cfg.get("context_max", 1024),
         current_context=cfg.get("context", 0) if cfg.get("context_growth_enabled", False) else 0,
         lstm_hidden=cfg.get("lstm_hidden", 256),
+        tie_embeddings=False,
     )
+
+    # Optionally enable embedding tying after construction (safe replacement)
+    if model.embedder is not None:
+        model.enable_embedding_tying()
 
     # --- Trainer ---
     resume_from = f"{log_dir}/checkpoint.pt" if args.resume else None

@@ -172,7 +172,17 @@ def get_architecture_summary(model: nn.Module) -> dict:
         total += prev * layer.out_features + layer.out_features
         prev = layer.out_features
     for name, head in model.output_heads.items():
-        total += prev * head.weight.size(0) + head.weight.size(0)
+        # head may be tied (no `weight` attribute); use `num_classes` and
+        # `in_features` to estimate parameter count, or fall back to `get_weight()`.
+        try:
+            n_out = getattr(head, 'num_classes', None) or head.get_weight().size(0)
+            total += prev * n_out + n_out
+        except Exception:
+            try:
+                n_out = head.weight.size(0)
+                total += prev * n_out + n_out
+            except Exception:
+                pass
     return {
         "n_hidden_layers": model.n_hidden_layers,
         "neurons_per_layer": neurons,

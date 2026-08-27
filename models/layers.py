@@ -53,10 +53,16 @@ class DynamicLinear(nn.Module):
         )
 
     def _reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
-        bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-        nn.init.uniform_(self.bias, -bound, bound)
+        if getattr(self, 'tie', False):
+            nn.init.kaiming_uniform_(self.proj, a=math.sqrt(5))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.proj)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
+        else:
+            nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(
         self,
@@ -213,34 +219,124 @@ class TaskOutputHead(nn.Module):
     previous-task heads remain unaffected.
     """
 
-    def __init__(self, in_features: int, num_classes: int, task_id: int):
+    def __init__(self, in_features: int, num_classes: int, task_id: int, embedder: nn.Module | None = None, tie: bool = False):
         super().__init__()
         self.in_features = in_features
         self.num_classes = num_classes
-        self.weight = nn.Parameter(torch.empty(num_classes, in_features))
-        self.bias = nn.Parameter(torch.empty(num_classes))
-        self._reset_parameters()
+        self.tie = tie and (embedder is not None)
+        self.embedder = embedder if self.tie else None
+        if self.tie:
+            # Projection from hidden features -> embedding dim, then use
+            # embedder.weight.T as output projection (weight-tying).
+            self.embed_dim = self.embedder.embedding_dim
+            self.proj = nn.Parameter(torch.empty(self.embed_dim, in_features))
+            self.bias = nn.Parameter(torch.empty(num_classes))
+            self._reset_parameters()
+            # anchors for proj and bias
+            self.register_buffer("proj_anchor", self.proj.data.clone())
+            self.register_buffer("bias_anchor", self.bias.data.clone())
+        else:
+            self.weight = nn.Parameter(torch.empty(num_classes, in_features))
+            self.bias = nn.Parameter(torch.empty(num_classes))
+            self._reset_parameters()
 
-        self.register_buffer("weight_anchor", self.weight.data.clone())
-        self.register_buffer("bias_anchor", self.bias.data.clone())
+            self.register_buffer("weight_anchor", self.weight.data.clone())
+            self.register_buffer("bias_anchor", self.bias.data.clone())
 
     def _reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
-        bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-        nn.init.uniform_(self.bias, -bound, bound)
+        if getattr(self, 'tie', False):
+            nn.init.kaiming_uniform_(self.proj, a=math.sqrt(5))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.proj)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
+        else:
+            nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x: torch.Tensor, in_slice: int | None = None) -> torch.Tensor:
-        if in_slice is not None:
-            return F.linear(x, self.weight[:, :in_slice], self.bias)
-        return F.linear(x, self.weight, self.bias)
+        if self.tie:
+            # project to embedding space, then multiply by embedder weights
+            if in_slice is not None:
+                proj_w = self.proj[:, :in_slice]
+            else:
+                proj_w = self.proj
+            z = F.linear(x, proj_w)  # (B, embed_dim)
+            # embedder.weight: (vocab_size, embed_dim) -> F.linear expects (out, in)
+            return F.linear(z, self.embedder.weight, self.bias)
+        else:
+            if in_slice is not None:
+                return F.linear(x, self.weight[:, :in_slice], self.bias)
+            return F.linear(x, self.weight, self.bias)
 
     def expand_input_units(self, n_new: int):
         """Add *n_new* zero-initialised columns to accommodate growth in
         the previous layer."""
-        new_w = torch.zeros(self.num_classes, n_new)
-        self.weight = nn.Parameter(torch.cat([self.weight.data, new_w], dim=1))
-        self.in_features += n_new
-        self.weight_anchor = torch.cat(
-            [self.weight_anchor, torch.zeros(self.num_classes, n_new)], dim=1
-        )
+        if self.tie:
+            # proj: (embed_dim, in_features) -> append zero columns
+            new_proj_cols = torch.zeros(self.embed_dim, n_new)
+            self.proj = nn.Parameter(torch.cat([self.proj.data, new_proj_cols], dim=1))
+            self.in_features += n_new
+            self.proj_anchor = torch.cat([self.proj_anchor, torch.zeros(self.embed_dim, n_new)], dim=1)
+        else:
+            new_w = torch.zeros(self.num_classes, n_new)
+            self.weight = nn.Parameter(torch.cat([self.weight.data, new_w], dim=1))
+            self.in_features += n_new
+            self.weight_anchor = torch.cat(
+                [self.weight_anchor, torch.zeros(self.num_classes, n_new)], dim=1
+            )
+
+    def get_weight(self) -> torch.Tensor:
+        """Return full (num_classes, in_features) weight matrix for this head."""
+        if self.tie:
+            # embedder.weight: (num_classes, embed_dim), proj: (embed_dim, in_features)
+            return (self.embedder.weight @ self.proj).clone()
+        else:
+            return self.weight.data.clone()
+
+    def get_bias(self) -> torch.Tensor:
+        if self.tie:
+            return self.bias.data.clone()
+        else:
+            return self.bias.data.clone()
+
+    def set_weight_and_bias(self, weight: torch.Tensor, bias: torch.Tensor):
+        """Set the full output weight matrix and bias.
+
+        For tied heads we solve a least-squares projection to update
+        `self.proj` such that `embedder.weight @ proj ≈ weight`.
+        """
+        if self.tie:
+            with torch.no_grad():
+                # bias
+                self.bias.data = bias.clone()
+                # least-squares solve for proj: pinv(embed) @ weight
+                try:
+                    pinv = torch.linalg.pinv(self.embedder.weight)
+                    new_proj = pinv @ weight
+                    self.proj.data = new_proj
+                except Exception:
+                    # fallback: random init (should be rare)
+                    self.proj.data = torch.zeros_like(self.proj.data)
+                self.proj_anchor = self.proj.data.clone()
+                self.bias_anchor = self.bias.data.clone()
+                self.in_features = weight.size(1)
+        else:
+            with torch.no_grad():
+                self.weight.data = weight.clone()
+                self.bias.data = bias.clone()
+                self.weight_anchor = self.weight.data.clone()
+                self.bias_anchor = self.bias.data.clone()
+                self.in_features = weight.size(1)
+
+    def prune_input_columns(self, keep: torch.Tensor):
+        """Prune input columns (keep is a boolean mask over input features)."""
+        if self.tie:
+            self.proj.data = self.proj.data[:, keep]
+            self.proj_anchor = self.proj_anchor[:, keep]
+            self.in_features = self.proj.data.size(1)
+        else:
+            self.weight.data = self.weight.data[:, keep]
+            self.weight_anchor = self.weight_anchor[:, keep]
+            self.in_features = self.weight.data.size(1)

@@ -126,6 +126,7 @@ class DEN(nn.Module):
         context_max: int = 1024,
         lstm_hidden: int = 256,
         current_context: int = 0,
+        tie_embeddings: bool = True,
     ):
         super().__init__()
         self.input_dim = input_dim
@@ -144,6 +145,7 @@ class DEN(nn.Module):
         # Optional shared input embedding (e.g. token ids -> vectors for
         # language modeling).  Must project to ``input_dim`` features.
         self.embedder = embedder
+        self.tie_embeddings = tie_embeddings
 
         # --- Context growth (Approach A: rebuild first layer) ---
         self.context_growth_enabled = context_growth_enabled
@@ -317,6 +319,7 @@ class DEN(nn.Module):
                 "context_growth_step": self.context_growth_step,
                 "context_max": self.context_max,
                 "current_context": self.current_context,
+                "tie_embeddings": getattr(self, 'tie_embeddings', False),
             },
             "structure": [
                 {"in": layer.in_features, "out": layer.out_features}
@@ -338,6 +341,7 @@ class DEN(nn.Module):
                 "num_embeddings": self.embedder.num_embeddings,
                 "embedding_dim": self.embedder.embedding_dim,
             }
+        state["tie_embeddings"] = getattr(self, "tie_embeddings", False)
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(state, path)
@@ -361,13 +365,18 @@ class DEN(nn.Module):
         last_out = state["structure"][-1]["out"]
         for task_id in state["head_tasks"]:
             model.output_heads[f"task_{task_id}"] = TaskOutputHead(
-                last_out, cfg["num_classes"], task_id
+                last_out, cfg["num_classes"], task_id,
+                embedder=(model.embedder if getattr(model, 'embedder', None) is not None else None),
+                tie=bool(cfg.get("tie_embeddings", False)),
             )
 
         # Optional embedding layer.
         if "embedder" in state:
             emb = state["embedder"]
             model.embedder = nn.Embedding(emb["num_embeddings"], emb["embedding_dim"])
+
+        # restore tie flag
+        model.tie_embeddings = bool(state.get("tie_embeddings", False))
 
         # Restore all parameters, buffers and growth bookkeeping.
         model.load_state_dict(state["state_dict"], strict=True)
@@ -377,6 +386,56 @@ class DEN(nn.Module):
         model.architecture_log = list(state["architecture_log"])
         model.depth_growth_tracker = _tensorify_from_cpu(state["depth_growth_tracker"])
         return model
+
+    # ---------------------------------------------------------------
+    # Embedding / tying helpers
+    # ---------------------------------------------------------------
+    def expand_embedding_vocab(self, new_num_embeddings: int):
+        """Expand the embedding matrix to `new_num_embeddings` rows.
+
+        Existing weights are copied; new rows are zero-initialized.
+        """
+        if self.embedder is None:
+            raise RuntimeError("No embedder to expand")
+        cur = self.embedder.num_embeddings
+        if new_num_embeddings <= cur:
+            return
+        old_w = self.embedder.weight.data
+        new_w = torch.zeros(new_num_embeddings, old_w.size(1), device=old_w.device)
+        new_w[:cur] = old_w
+        self.embedder = nn.Embedding(new_num_embeddings, old_w.size(1))
+        with torch.no_grad():
+            self.embedder.weight.data = new_w
+        self.emb_dim = self.embedder.embedding_dim
+
+    def enable_embedding_tying(self):
+        """Enable weight-tying between the embedder and all output heads.
+
+        Replaces existing heads with tied `TaskOutputHead` and solves a
+        least-squares projection so the new tied heads approximate the
+        original weights.
+        """
+        if self.embedder is None:
+            print("  [!] No embedder present; cannot enable tying")
+            return
+        for key in list(self.output_heads.keys()):
+            # read current full weight/bias via helper if available
+            old = self.output_heads[key]
+            try:
+                w = old.get_weight()
+                b = old.get_bias()
+            except Exception:
+                # fallback: try direct attributes
+                w = old.weight.data.clone() if hasattr(old, 'weight') else None
+                b = old.bias.data.clone() if hasattr(old, 'bias') else None
+            if w is None or b is None:
+                continue
+            # create a tied head and set its projection to match w
+            task_id = int(key.split("_")[1])
+            tied = TaskOutputHead(w.size(1), self.num_classes, task_id, embedder=self.embedder, tie=True)
+            tied.set_weight_and_bias(w, b)
+            self.output_heads[key] = tied
+        self.tie_embeddings = True
 
     # ---------------------------------------------------------------
     #  First task
@@ -660,7 +719,8 @@ class DEN(nn.Module):
 
         # --- 1b. Identify active neurons ---
         shared_weights = self._get_shared_weights()
-        head_w = self.output_heads[f"task_{task_id}"].weight.data
+        head = self.output_heads[f"task_{task_id}"]
+        head_w = head.get_weight()
         # Build a small probe batch to collect layer activations for
         # activation-driven sub-network selection.
         probe_batch = None
@@ -778,8 +838,9 @@ class DEN(nn.Module):
         """
         # Snapshot full weights
         shared_weights = self._get_shared_weights()
-        head_w = self.output_heads[f"task_{task_id}"].weight.data.clone()
-        head_b = self.output_heads[f"task_{task_id}"].bias.data.clone()
+        head = self.output_heads[f"task_{task_id}"]
+        head_w = head.get_weight().clone()
+        head_b = head.get_bias().clone()
 
         # Build sub-network
         sub_net = self._build_sub_network(sub_weights, task_id).to(self._device)
@@ -848,8 +909,14 @@ class DEN(nn.Module):
         for i in range(self.n_hidden_layers):
             self.hidden_layers[i].weight.data = shared_weights[i]["weight"]
             self.hidden_layers[i].bias.data = shared_weights[i]["bias"]
-        self.output_heads[f"task_{task_id}"].weight.data = head_w
-        self.output_heads[f"task_{task_id}"].bias.data = head_b
+        head = self.output_heads[f"task_{task_id}"]
+        # delegate setting to head so tied/untied variants handle correctly
+        try:
+            head.set_weight_and_bias(head_w, head_b)
+        except Exception:
+            # fallback to direct assignment for compatibility
+            head.weight.data = head_w
+            head.bias.data = head_b
 
         val_loss, _ = self._evaluate(val_loader, task_id)
         return val_loss
@@ -1007,11 +1074,18 @@ class DEN(nn.Module):
                 else:
                     # Output heads: zero old input cols (only allow new cols)
                     for head in self.output_heads.values():
-                        if head.weight.grad is not None and head.in_features >= n_new:
-                            cut = head.in_features - n_new
-                            if cut > 0:
-                                head.weight.grad[:, :cut] *= 0.05
-                            head.weight.grad[:, cut:] *= 3.0
+                        if getattr(head, 'tie', False):
+                            if getattr(head, 'proj').grad is not None and head.in_features >= n_new:
+                                cut = head.in_features - n_new
+                                if cut > 0:
+                                    head.proj.grad[:, :cut] *= 0.05
+                                head.proj.grad[:, cut:] *= 3.0
+                        else:
+                            if head.weight.grad is not None and head.in_features >= n_new:
+                                cut = head.in_features - n_new
+                                if cut > 0:
+                                    head.weight.grad[:, :cut] *= 0.05
+                                head.weight.grad[:, cut:] *= 3.0
 
             optimizer.step()
 
@@ -1161,9 +1235,7 @@ class DEN(nn.Module):
             nxt.in_features -= removed
         else:
             for head in self.output_heads.values():
-                head.weight.data = head.weight.data[:, keep]
-                head.weight_anchor = head.weight_anchor[:, keep]
-                head.in_features -= removed
+                head.prune_input_columns(keep)
 
     # ================================================================
     #  Split & Duplication
@@ -1413,8 +1485,12 @@ class DEN(nn.Module):
                 pass
         for head in self.output_heads.values():
             try:
-                head.weight_anchor = head.weight.data.clone()
-                head.bias_anchor = head.bias.data.clone()
+                if getattr(head, 'tie', False):
+                    head.proj_anchor = head.proj.data.clone()
+                    head.bias_anchor = head.bias.data.clone()
+                else:
+                    head.weight_anchor = head.weight.data.clone()
+                    head.bias_anchor = head.bias.data.clone()
             except Exception:
                 pass
 
@@ -1423,14 +1499,18 @@ class DEN(nn.Module):
         for layer in self.hidden_layers:
             stamp.append(layer.out_features)
         head = self.output_heads[f"task_{task_id}"]
-        stamp.append(head.weight.size(0))
+        stamp.append(head.num_classes)
         self.timestamps[task_id] = stamp
 
     def _add_output_head(self, task_id: int):
         key = f"task_{task_id}"
         if key not in self.output_heads:
             prev_dim = self.hidden_layers[-1].out_features
-            self.output_heads[key] = TaskOutputHead(prev_dim, self.num_classes, task_id)
+            self.output_heads[key] = TaskOutputHead(
+                prev_dim, self.num_classes, task_id,
+                embedder=(self.embedder if getattr(self, 'embedder', None) is not None else None),
+                tie=getattr(self, 'tie_embeddings', False),
+            )
 
     def _log_architecture(
         self, task_id: int,
