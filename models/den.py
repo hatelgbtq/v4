@@ -199,6 +199,22 @@ class DEN(nn.Module):
         """Embed token ids and flatten to (B, context * emb_dim)."""
         if self.embedder is None:
             return x.view(x.size(0), -1)
+
+        # If the training data still yields windows of the old context
+        # length (e.g. after a context-growth event), adapt by padding
+        # or truncating so the embedder always receives `self.current_context`
+        # tokens. This guards against mismatch when loaders or cached
+        # batches haven't been refreshed immediately.
+        if x.dim() == 2 and self.current_context and x.size(1) != self.current_context:
+            cur = int(self.current_context)
+            if x.size(1) < cur:
+                pad_val = 1  # PAD id used by datasets.text (safe default)
+                pad = x.new_full((x.size(0), cur - x.size(1)), pad_val)
+                x = torch.cat([pad, x], dim=1)
+            else:
+                # truncate to the most recent tokens
+                x = x[:, -cur:]
+
         return self.embedder(x).view(x.size(0), -1)
 
     def forward(
