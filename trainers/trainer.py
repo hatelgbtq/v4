@@ -185,6 +185,13 @@ class Trainer:
                         val_loaders[i] = new_val[i]
                         test_loaders[i] = new_test[i]
 
+                # Clear any cached probe batch (it may have the old context size)
+                try:
+                    if "probe_batch" in self.model.depth_growth_tracker:
+                        del self.model.depth_growth_tracker["probe_batch"]
+                except Exception:
+                    pass
+
             elapsed = time.time() - t0
 
             # Evaluate on *all* tasks seen so far
