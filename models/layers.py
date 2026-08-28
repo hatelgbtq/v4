@@ -80,12 +80,28 @@ class DynamicLinear(nn.Module):
             out_slice: Number of output neurons to use (slice rows).
             in_slice:  Number of input features to use (slice columns).
         """
+        # Select weight/bias slice if requested
         if out_slice is not None:
             w = self.weight[:out_slice, :in_slice] if in_slice is not None else self.weight[:out_slice, :]
             b = self.bias[:out_slice]
         else:
             w = self.weight
             b = self.bias
+
+        # Ensure input width matches weight's expected in-features.
+        # If the input is too short, pad with zeros. If it's too long,
+        # truncate to the expected width. This guards against transient
+        # mismatches during context/input-dimension growth when loaders
+        # or cached batches may still produce the old window size.
+        if x.dim() == 2:
+            in_x = x.size(1)
+            in_w = w.size(1)
+            if in_x < in_w:
+                pad = x.new_zeros((x.size(0), in_w - in_x))
+                x = torch.cat([x, pad], dim=1)
+            elif in_x > in_w:
+                x = x[:, :in_w]
+
         return F.linear(x, w, b)
 
     # ------------------------------------------------------------------
@@ -265,13 +281,31 @@ class TaskOutputHead(nn.Module):
                 proj_w = self.proj[:, :in_slice]
             else:
                 proj_w = self.proj
+            # Align input width with proj_w if needed (pad/truncate)
+            if x.dim() == 2:
+                in_x = x.size(1)
+                in_p = proj_w.size(1)
+                if in_x < in_p:
+                    pad = x.new_zeros((x.size(0), in_p - in_x))
+                    x = torch.cat([x, pad], dim=1)
+                elif in_x > in_p:
+                    x = x[:, :in_p]
+
             z = F.linear(x, proj_w)  # (B, embed_dim)
             # embedder.weight: (vocab_size, embed_dim) -> F.linear expects (out, in)
             return F.linear(z, self.embedder.weight, self.bias)
         else:
-            if in_slice is not None:
-                return F.linear(x, self.weight[:, :in_slice], self.bias)
-            return F.linear(x, self.weight, self.bias)
+            # Align input width with weight if needed (pad/truncate)
+            w = self.weight[:, :in_slice] if in_slice is not None else self.weight
+            if x.dim() == 2:
+                in_x = x.size(1)
+                in_w = w.size(1)
+                if in_x < in_w:
+                    pad = x.new_zeros((x.size(0), in_w - in_x))
+                    x = torch.cat([x, pad], dim=1)
+                elif in_x > in_w:
+                    x = x[:, :in_w]
+            return F.linear(x, w, self.bias)
 
     def expand_input_units(self, n_new: int):
         """Add *n_new* zero-initialised columns to accommodate growth in
