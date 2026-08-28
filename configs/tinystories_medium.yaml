@@ -1,0 +1,42 @@
+dataset: text
+data_path: TinyStories/data
+num_tasks: 4
+batch_size: 64
+max_iter: 5000
+lr: 0.0005
+
+# Text preprocessing
+context: 128
+emb_dim: 256
+vocab_size: 5000
+stories_per_task: 5000
+
+# Network architecture — fits comfortably in ~4GB VRAM
+hidden_dims: [1024, 512, 256]
+num_classes: 8192
+
+# DEN hyper-parameters
+ex_k: 32
+l1_lambda: 0.0000005
+l2_lambda: 0.000005
+gl_lambda: 0.0003
+regular_lambda: 0.5
+loss_thr: 0.04
+spl_thr: 0.04
+
+# Context growth
+context_growth_enabled: true
+context_growth_thr: 0.04
+context_growth_step: 64
+context_max: 512
+
+# Depth growth
+depth_growth_enabled: true
+depth_growth_interval: 1
+
+device: auto
+log_dir: results/tinystories_medium
+seed: 1004
+
+gen_length: 60
+gen_temperature: 0.9
